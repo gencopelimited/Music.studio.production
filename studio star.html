@@ -1,0 +1,754 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Audio Production App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1a1a1a;
+      color: white;
+      text-align: center;
+    }
+
+    h1 {
+      color: #42f5e0;
+    }
+
+    .menu {
+      margin: 20px 0;
+    }
+
+    .pad-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .pad {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 15px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .pad:hover {
+      background-color: #45a049;
+    }
+
+    .controls button, .editor-section button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .controls button:hover, .editor-section button:hover {
+      background-color: #45a049;
+    }
+
+    .effects, .volumes {
+      margin-top: 30px;
+    }
+
+    .editor-section {
+      margin-top: 20px;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.4);
+      overflow: auto;
+    }
+
+    .modal-content {
+      background-color: #fefefe;
+      margin: 15% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      color: black;
+    }
+
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .close:hover,
+    .close:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    input[type="range"] {
+      width: 80%;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Audio Production App</h1>
+
+<div class="menu">
+  <button>New</button>
+  <button>Save</button>
+  <button>Load</button>
+</div>
+
+<div class="pad-grid">
+  <button class="pad">Kick</button>
+  <button class="pad">Snare</button>
+  <button class="pad">Hi-Hat</button>
+  <button class="pad">Clap</button>
+  <button class="pad">Bass</button>
+  <button class="pad">Synth</button>
+  <button class="pad">Vox</button>
+  <button class="pad">Perc</button>
+</div>
+
+<div class="controls">
+  <input type="file" id="upload" onchange="handleFileSelect(event)">
+  <button onclick="playUploaded()">Play Uploaded Music</button>
+  <br><br>
+  <button onclick="startRecording()">Record Mic</button>
+  <button onclick="stopRecording()">Stop Mic</button>
+  <button onclick="stopAll()">Stop</button>
+  <button onclick="playBeat()">Play Beat</button>
+</div>
+
+<div class="volumes">
+  <h2>Volume Controls</h2>
+</div>
+
+<div class="effects">
+  <h2>Effects</h2>
+  <label>Reverb:</label> <input type="checkbox">
+  <br><br>
+  <label>Pitch:</label>
+  <input type="range" min="0" max="2" step="0.01" value="1">
+</div>
+
+<div class="editor-section">
+  <button onclick="openEditor()">Edit Recording</button>
+</div>
+
+<!-- Modal Editor -->
+<div id="editorModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeEditor()">&times;</span>
+    <h2>Edit Tracks</h2>
+    <div id="editList"></div>
+  </div>
+</div>
+
+<script>
+  let tracks = [];
+  let uploadedAudio = null;
+  let recorder, audioStream;
+
+  function handleFileSelect(event) {
+    const file = event.target.files[0];
+    const url = URL.createObjectURL(file);
+    const audio = new Audio(url);
+
+    audio.onloadedmetadata = function() {
+      tracks.push({
+        name: file.name,
+        duration: audio.duration,
+        audio: url
+      });
+      console.log('Imported:', file.name);
+    };
+  }
+
+  function playUploaded() {
+    if (uploadedAudio) {
+      uploadedAudio.play();
+    } else {
+      const fileInput = document.getElementById('upload');
+      if (fileInput.files.length > 0) {
+        uploadedAudio = new Audio(URL.createObjectURL(fileInput.files[0]));
+        uploadedAudio.play();
+      }
+    }
+  }
+
+  function startRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('getUserMedia not supported in your browser.');
+      return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(function(stream) {
+        audioStream = stream;
+        recorder = new MediaRecorder(stream);
+
+        let audioChunks = [];
+        recorder.ondataavailable = function(event) {
+          audioChunks.push(event.data);
+        };
+
+        recorder.onstop = function() {
+          const audioBlob = new Blob(audioChunks);
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
+
+          audio.onloadedmetadata = function() {
+            tracks.push({
+              name: 'Mic Recording',
+              duration: audio.duration,
+              audio: audioUrl
+            });
+            console.log('Recording saved.');
+          };
+        };
+
+        recorder.start();
+      })
+      .catch(function(err) {
+        console.error('Recording failed:', err);
+      });
+  }
+
+  function stopRecording() {
+    if (recorder && recorder.state === "recording") {
+      recorder.stop();
+      audioStream.getTracks().forEach(track => track.stop());
+    }
+  }
+
+  function stopAll() {
+    if (uploadedAudio) {
+      uploadedAudio.pause();
+    }
+    tracks.forEach(track => {
+      const audio = new Audio(track.audio);
+      audio.pause();
+    });
+  }
+
+  function playBeat() {
+    alert('Playing beat! (feature coming soon)');
+  }
+
+  function openEditor() {
+    const modal = document.getElementById("editorModal");
+    modal.style.display = "block";
+
+    const editList = document.getElementById("editList");
+    editList.innerHTML = "";
+
+    if (tracks.length === 0) {
+      editList.innerHTML = "<p>No recordings uploaded yet.</p>";
+    } else {
+      tracks.forEach((track, index) => {
+        const item = document.createElement("div");
+        item.className = "track-item";
+
+        const audio = document.createElement("audio");
+        audio.src = track.audio;
+        audio.controls = true;
+        audio.style.display = "block";
+
+        const trimSlider = document.createElement("input");
+        trimSlider.type = "range";
+        trimSlider.min = 0;
+        trimSlider.max = track.duration;
+        trimSlider.value = 0;
+        trimSlider.step = 0.01;
+        trimSlider.oninput = function() {
+          audio.currentTime = trimSlider.value;
+        };
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "Delete";
+        deleteBtn.onclick = function() {
+          tracks.splice(index, 1);
+          openEditor();
+        };
+
+        item.innerHTML = `<b>Track ${index + 1}:</b> ${track.name || "Recording"} (${track.duration.toFixed(2)} sec)<br>`;
+        item.appendChild(audio);
+        item.appendChild(trimSlider);
+        item.appendChild(deleteBtn);
+
+        editList.appendChild(item);
+      });
+    }
+  }
+
+  function closeEditor() {
+    const modal = document.getElementById("editorModal");
+    modal.style.display = "none";
+  }
+</script>
+
+</body>
+</html>
+<br><br>
+<label>Master Volume:</label>
+<input type="range" id="masterVolume" min="0" max="1" step="0.01" value="1" oninput="updateMasterVolume()">
+<br><br>
+<label>Loop Mode:</label>
+<input type="checkbox" id="loopMode" onchange="toggleLoopMode()"><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Audio Editor App</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+
+  <h1>Audio Production App</h1>
+  
+  <!-- All your page structure here (buttons, divs, etc.) -->
+
+  <script src="script.js"></script>
+</body>
+</html><script>function openEditor() {
+  const modal = document.getElementById("editorModal");
+  modal.style.display = "block";
+
+  const editList = document.getElementById("editList");
+  editList.innerHTML = "";
+
+  if (tracks.length === 0) {
+    editList.innerHTML = "<p>No recordings uploaded yet.</p>";
+  } else {
+    tracks.forEach((track, index) => {
+      const item = document.createElement("div");
+      item.className = "track-item";
+      item.style.padding = "15px";
+      item.style.marginBottom = "15px";
+      item.style.backgroundColor = "#333";
+      item.style.borderRadius = "10px";
+
+      const title = document.createElement("h3");
+      title.innerHTML = `Track ${index + 1}: ${track.name || "Recording"}`;
+
+      const audio = document.createElement("audio");
+      audio.src = track.audio;
+      audio.controls = true;
+      audio.style.display = "block";
+      audio.style.width = "100%";
+
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.value = track.name;
+      nameInput.style.width = "80%";
+      nameInput.style.padding = "8px";
+      nameInput.style.margin = "10px 0";
+      nameInput.onchange = function() {
+        track.name = nameInput.value;
+      };
+
+      const trimSlider = document.createElement("input");
+      trimSlider.type = "range";
+      trimSlider.min = 0;
+      trimSlider.max = track.duration;
+      trimSlider.value = 0;
+      trimSlider.step = 0.01;
+      trimSlider.style.width = "100%";
+      trimSlider.style.margin = "10px 0";
+      trimSlider.oninput = function() {
+        audio.currentTime = trimSlider.value;
+      };
+
+      const volumeSlider = document.createElement("input");
+      volumeSlider.type = "range";
+      volumeSlider.min = 0;
+      volumeSlider.max = 1;
+      volumeSlider.step = 0.01;
+      volumeSlider.value = 1;
+      volumeSlider.style.width = "100%";
+      volumeSlider.style.margin = "10px 0";
+      volumeSlider.oninput = function() {
+        audio.volume = volumeSlider.value;
+      };
+
+      const btnGroup = document.createElement("div");
+      btnGroup.style.marginTop = "10px";
+
+      const splitBtn = document.createElement("button");
+      splitBtn.textContent = "Split";
+      splitBtn.style.marginRight = "10px";
+      splitBtn.onclick = function() {
+        const splitTime = audio.currentTime;
+        if (splitTime < track.duration) {
+          const newTrack = {
+            name: track.name + " (Split)",
+            duration: track.duration - splitTime,
+            audio: track.audio
+          };
+          tracks.splice(index + 1, 0, newTrack);
+          track.duration = splitTime;
+          openEditor();
+        }
+      };
+
+      const downloadBtn = document.createElement("button");
+      downloadBtn.textContent = "Download";
+      downloadBtn.style.marginRight = "10px";
+      downloadBtn.onclick = function() {
+        const a = document.createElement("a");
+        a.href = track.audio;
+        a.download = track.name + ".webm"; 
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "Delete";
+      deleteBtn.onclick = function() {
+        tracks.splice(index, 1);
+        openEditor();
+      };
+
+      btnGroup.appendChild(splitBtn);
+      btnGroup.appendChild(downloadBtn);
+      btnGroup.appendChild(deleteBtn);
+
+      item.appendChild(title);
+      item.appendChild(audio);
+      item.appendChild(nameInput);
+      item.appendChild(trimSlider);
+      item.appendChild(volumeSlider);
+      item.appendChild(btnGroup);
+
+      editList.appendChild(item);
+    });
+  }
+}let playingAudios = [];
+let masterVolume = 1;
+function stopAll() {
+  if (uploadedAudio) {
+    uploadedAudio.pause();
+    uploadedAudio.currentTime = 0;
+  }
+
+  if (playingAudios.length > 0) {
+    playingAudios.forEach(audio => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
+    playingAudios = [];
+  }
+}function updateMasterVolume() {
+  const slider = document.getElementById("masterVolume");
+  masterVolume = slider.value;
+
+  // Update currently playing audios
+  playingAudios.forEach(audio => {
+    audio.volume = masterVolume;
+  });
+}let loopMode = false;
+
+function toggleLoopMode() {
+  const checkbox = document.getElementById("loopMode");
+  loopMode = checkbox.checked;
+
+  playingAudios.forEach(audio => {
+    audio.loop = loopMode;
+  });
+
+  console.log('Loop mode is', loopMode ? 'ON' : 'OFF');
+}function playBeat() {
+  stopAll(); // Stop anything playing
+  playingAudios = [];
+
+  tracks.forEach(track => {
+    const audio = new Audio(track.audio);
+    audio.volume = masterVolume;
+    audio.loop = loopMode;  // <- NEW
+    audio.play();
+    playingAudios.push(audio);
+  });
+
+  console.log('Playing all tracks together!');
+}const muteBtn = document.createElement("button");
+muteBtn.textContent = "Mute";
+muteBtn.onclick = function() {
+  track.muted = !track.muted;
+  muteBtn.textContent = track.muted ? "Unmute" : "Mute";
+};item.appendChild(muteBtn);
+audio.muted = track.muted || false;tracks.forEach(track => {
+  const audio = new Audio(track.audio);
+  audio.volume = masterVolume;
+  audio.loop = loopMode;
+  audio.muted = track.muted || false;
+  audio.play();
+  playingAudios.push(audio);
+});tracks.forEach(track => {
+  const audio = new Audio(track.audio);
+  audio.volume = masterVolume;
+  audio.loop = loopMode;
+  audio.muted = track.muted || false;
+  audio.play();
+  playingAudios.push(audio);
+});function splitAt(index) {
+  const slider = document.getElementById(`slider-${index}`);
+  const splitTime = parseFloat(slider.value);
+
+  const track = tracks[index];
+  
+  fetch(track.audio)
+    .then(response => response.arrayBuffer())
+    .then(arrayBuffer => {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      return audioContext.decodeAudioData(arrayBuffer);
+    })
+    .then(audioBuffer => {
+      const sampleRate = audioBuffer.sampleRate;
+      const splitSample = Math.floor(splitTime * sampleRate);
+
+      // Create two new buffers
+      const firstPart = audioBuffer.slice(0, splitSample);
+      const secondPart = audioBuffer.slice(splitSample);
+
+      const newTracks = [];
+
+      // Helper function to create a Blob URL from buffer
+      function bufferToURL(buffer) {
+        const wavBuffer = encodeWAV(buffer);
+        const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+        return URL.createObjectURL(blob);
+      }
+
+      // Add first part
+      if (firstPart.length > 0) {
+        newTracks.push({
+          name: track.name + ' (Part 1)',
+          duration: firstPart.length / sampleRate,
+          audio: bufferToURL(firstPart)
+        });
+      }
+
+      // Add second part
+      if (secondPart.length > 0) {
+        newTracks.push({
+          name: track.name + ' (Part 2)',
+          duration: secondPart.length / sampleRate,
+          audio: bufferToURL(secondPart)
+        });
+      }
+
+      // Replace original track
+      tracks.splice(index, 1, ...newTracks);
+      openEditor();
+    })
+    .catch(err => {
+      console.error('Error splitting track:', err);
+      alert('Split failed.');
+    });
+}function encodeWAV(audioBuffer) {
+  const numChannels = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+
+  let samples;
+
+  if (numChannels === 2) {
+    const channelLeft = audioBuffer.getChannelData(0);
+    const channelRight = audioBuffer.getChannelData(1);
+    samples = interleave(channelLeft, channelRight);
+  } else {
+    samples = audioBuffer.getChannelData(0);
+  }
+
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+
+  /* RIFF identifier */
+  writeString(view, 0, 'RIFF');
+  /* file length */
+  view.setUint32(4, 32 + samples.length * 2, true);
+  /* RIFF type */
+  writeString(view, 8, 'WAVE');
+  /* format chunk identifier */
+  writeString(view, 12, 'fmt ');
+  /* format chunk length */
+  view.setUint32(16, 16, true);
+  /* sample format (raw) */
+  view.setUint16(20, format, true);
+  /* channel count */
+  view.setUint16(22, numChannels, true);
+  /* sample rate */
+  view.setUint32(24, sampleRate, true);
+  /* byte rate (sample rate * block align) */
+  view.setUint32(28, sampleRate * numChannels * 2, true);
+  /* block align (channel count * bytes per sample) */
+  view.setUint16(32, numChannels * 2, true);
+  /* bits per sample */
+  view.setUint16(34, bitDepth, true);
+  /* data chunk identifier */
+  writeString(view, 36, 'data');
+  /* data chunk length */
+  view.setUint32(40, samples.length * 2, true);
+
+  // write samples
+  floatTo16BitPCM(view, 44, samples);
+
+  return buffer;
+}
+
+function interleave(inputL, inputR) {
+  const length = inputL.length + inputR.length;
+  const result = new Float32Array(length);
+
+  let index = 0;
+  let inputIndex = 0;
+
+  while (index < length) {
+    result[index++] = inputL[inputIndex];
+    result[index++] = inputR[inputIndex];
+    inputIndex++;
+  }
+  return result;
+}
+
+function floatTo16BitPCM(output, offset, input) {
+  for (let i = 0; i < input.length; i++, offset += 2) {
+    let s = Math.max(-1, Math.min(1, input[i]));
+    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+}
+
+function writeString(view, offset, string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}function applyFade(audioBuffer, fadeIn = true, fadeOut = true, fadeDuration = 0.5) {
+  const sampleRate = audioBuffer.sampleRate;
+  const length = audioBuffer.length;
+
+  for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+    const samples = audioBuffer.getChannelData(channel);
+
+    if (fadeIn) {
+      const fadeSamples = Math.min(sampleRate * fadeDuration, length);
+      for (let i = 0; i < fadeSamples; i++) {
+        samples[i] *= (i / fadeSamples);
+      }
+    }
+
+    if (fadeOut) {
+      const fadeSamples = Math.min(sampleRate * fadeDuration, length);
+      for (let i = 0; i < fadeSamples; i++) {
+        samples[length - fadeSamples + i] *= (1 - i / fadeSamples);
+      }
+    }
+  }
+
+  return audioBuffer;
+}applyFade(firstPart, true, false);  // Fade In only
+applyFade(secondPart, false, true); // Fade Out onlyconst sampleRate = audioBuffer.sampleRate;
+const splitSample = Math.floor(splitTime * sampleRate);
+
+const firstPart = audioBuffer.slice(0, splitSample);
+const secondPart = audioBuffer.slice(splitSample);
+
+// NEW: Apply fades
+applyFade(firstPart, true, false);
+applyFade(secondPart, false, true);
+
+const newTracks = [];
+// etc...const trimStartSlider = document.createElement("input");
+trimStartSlider.type = "range";
+trimStartSlider.min = 0;
+trimStartSlider.max = track.duration;
+trimStartSlider.value = 0;
+trimStartSlider.step = 0.01;
+
+const trimEndSlider = document.createElement("input");
+trimEndSlider.type = "range";
+trimEndSlider.min = 0;
+trimEndSlider.max = track.duration;
+trimEndSlider.value = track.duration;
+trimEndSlider.step = 0.01;
+
+const trimBtn = document.createElement("button");
+trimBtn.textContent = "Trim";
+trimBtn.onclick = function() {
+  trimTrack(index, parseFloat(trimStartSlider.value), parseFloat(trimEndSlider.value));
+};item.appendChild(document.createTextNode('Trim Start:'));
+item.appendChild(trimStartSlider);
+item.appendChild(document.createElement('br'));
+
+item.appendChild(document.createTextNode('Trim End:'));
+item.appendChild(trimEndSlider);
+item.appendChild(document.createElement('br'));
+
+item.appendChild(trimBtn);function trimTrack(index, startTime, endTime) {
+  const track = tracks[index];
+
+  fetch(track.audio)
+    .then(response => response.arrayBuffer())
+    .then(arrayBuffer => {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      return audioContext.decodeAudioData(arrayBuffer);
+    })
+    .then(audioBuffer => {
+      const sampleRate = audioBuffer.sampleRate;
+      const startSample = Math.floor(startTime * sampleRate);
+      const endSample = Math.floor(endTime * sampleRate);
+      const newLength = endSample - startSample;
+
+      if (newLength <= 0) {
+        alert("Invalid trim range!");
+        return;
+      }
+
+      const trimmedBuffer = audioContext.createBuffer(
+        audioBuffer.numberOfChannels,
+        newLength,
+        sampleRate
+      );
+
+      for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+        const oldData = audioBuffer.getChannelData(channel);
+        const newData = trimmedBuffer.getChannelData(channel);
+        for (let i = 0; i < newLength; i++) {
+          newData[i] = oldData[startSample + i];
+        }
+      }
+
+      const newAudioUrl = URL.createObjectURL(new Blob([encodeWAV(trimmedBuffer)], { type: 'audio/wav' }));
+
+      tracks[index] = {
+        name: track.name + " (Trimmed)",
+        duration: trimmedBuffer.duration,
+        audio: newAudioUrl
+      };
+
+      openEditor();
+    })
+    .catch(err => {
+      console.error('Error trimming track:', err);
+      alert('Trim failed.');
+    });
+}if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js')
+    .then(registration => {
+      console.log('Service Worker registered with scope:', registration.scope);
+    }).catch(error => {
+      console.error('Service Worker registration failed:', error);
+    });
+}</script>
