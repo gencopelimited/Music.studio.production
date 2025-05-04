@@ -1,227 +1,275 @@
 <meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>Gen Music Studio</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/wavesurfer.js"></script>
+  <script src="https://unpkg.com/lamejs/lame.min.js"></script>
 </head>
 <body>
-  <div id="app">
-    <header>
-      <h1>Gen Music Studio</h1>
-      <button onclick="saveToDrafts()">Save to Drafts</button>
-    </header>
+  <div class="studio-container">
+    <h1 class="logo">Gen Music Studio</h1>
 
-    <section class="controls">
-      <input type="file" id="audioUpload" accept="audio/*" />
-      <button onclick="loadAudio()">Load</button>
-      <button onclick="recordToggle()">Mic Record</button>
-      <button onclick="togglePlay()">Play/Pause</button>
-      <button onclick="downloadFull()">Download Full</button>
-      <button onclick="downloadTrim()">Download Trimmed</button>
-    </section>
+    <div class="upload-section">
+      <input type="file" id="file-upload" accept="audio/*">
+      <button id="record-btn">Start Recording</button>
+      <button id="stop-record-btn" disabled>Stop Recording</button>
+    </div>
 
-    <div id="waveform"></div>
+    <div id="waveform" class="wave wave-main"></div>
+    <div id="mic-waveform" class="wave wave-mic"></div>
 
-    <section class="trim">
-      <label>Start: <input type="number" id="startTime" step="0.1" /></label>
-      <label>End: <input type="number" id="endTime" step="0.1" /></label>
-      <button onclick="trimAudio()">Trim</button>
-    </section>
+    <div class="controls">
+      <button id="play-btn">Play</button>
+      <button id="pause-btn">Pause</button>
+      <button id="stop-btn">Stop</button>
+    </div>
 
-    <footer>
-      <p>Contact us: <a href="mailto:vevocobra743@gmail.com">vevocobra743@gmail.com</a></p>
-    </footer>
+    <div class="actions">
+      <button class="export-btn">Export MP3</button>
+      <button class="export-wav-btn">Export WAV</button>
+      <button class="save-draft">Save to Drafts</button>
+    </div>
+
+    <p class="note">WAV export is a premium feature.</p>
   </div>
 
-  <script src="app.js"></script>
+  <script src="script.js"></script>
 </body>
 </html><style>body {
-  background: #111;
-  color: #fff;
-  font-family: 'Segoe UI', sans-serif;
   margin: 0;
-  padding: 0;
-}
-
-#app {
-  padding: 20px;
-}
-
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  animation: slideDown 0.5s ease-out;
-}
-
-header h1 {
-  font-size: 2em;
-}
-
-.controls,
-.trim {
-  display: flex;
-  gap: 10px;
-  margin: 20px 0;
-  flex-wrap: wrap;
-  animation: fadeIn 0.8s ease-in;
-}
-
-button {
-  background: #444;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(145deg, #0e0e0e, #1a1a1a);
   color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.studio-container {
+  width: 95%;
+  max-width: 700px;
+  background: #121212;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 0 25px rgba(0, 255, 150, 0.1);
+  animation: fadeIn 1s ease-in-out;
+}
+
+.logo {
+  text-align: center;
+  font-size: 2em;
+  color: #00ffc6;
+  margin-bottom: 20px;
+  animation: pulse 2s infinite alternate;
+}
+
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.upload-section input,
+.upload-section button {
+  padding: 10px;
   border: none;
-  padding: 10px 15px;
   border-radius: 10px;
+  background: #1f1f1f;
+  color: #00ffc6;
   cursor: pointer;
   transition: background 0.3s ease;
 }
 
-button:hover {
-  background: #666;
+.upload-section button:disabled {
+  background: #333;
+  cursor: not-allowed;
 }
 
-#waveform {
-  margin: 20px 0;
-  background: #222;
-  padding: 10px;
+.upload-section input[type="file"] {
+  background: #1f1f1f;
+}
+
+.controls,
+.actions {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+button {
+  padding: 10px 15px;
+  background: #0f0f0f;
+  border: 1px solid #00ffc6;
   border-radius: 10px;
+  color: #00ffc6;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-footer {
-  margin-top: 40px;
+button:hover {
+  background: #00ffc6;
+  color: #000;
+  transform: scale(1.05);
+}
+
+.wave {
+  margin-top: 15px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0, 255, 150, 0.3);
+  animation: glow 2s infinite alternate;
+}
+
+.note {
   text-align: center;
   font-size: 0.9em;
-  color: #aaa;
+  color: #999;
+  margin-top: 15px;
 }
 
-@keyframes slideDown {
-  from { transform: translateY(-20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+/* Animations */
+@keyframes pulse {
+  from { text-shadow: 0 0 10px #00ffc6; }
+  to { text-shadow: 0 0 25px #00ffc6; }
+}
+
+@keyframes glow {
+  0% { box-shadow: 0 0 10px rgba(0,255,150,0.2); }
+  100% { box-shadow: 0 0 25px rgba(0,255,150,0.6); }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}</style><script>let wavesurfer = WaveSurfer.create({
-  container: '#waveform',
-  waveColor: '#777',
-  progressColor: '#22f',
-  backend: 'MediaElement',
-});
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}</style><script>let wavesurfer, micWavesurfer;
+let micStream, recorder, micChunks = [];
 
-document.getElementById('audioUpload').addEventListener('change', function () {
-  const file = this.files[0];
-  if (file) {
-    const url = URL.createObjectURL(file);
-    wavesurfer.load(url);
-  }
-});
+function initWaves() {
+  wavesurfer = WaveSurfer.create({
+    container: '#waveform',
+    waveColor: '#00ffc6',
+    progressColor: '#009e87',
+    height: 80
+  });
 
-function loadAudio() {
-  const fileInput = document.getElementById('audioUpload');
-  const file = fileInput.files[0];
-  if (!file) return alert('Please select an audio file first.');
-  const url = URL.createObjectURL(file);
-  wavesurfer.load(url);
-}
-
-function togglePlay() {
-  wavesurfer.playPause();
-}
-
-function trimAudio() {
-  const start = parseFloat(document.getElementById('startTime').value);
-  const end = parseFloat(document.getElementById('endTime').value);
-  if (isNaN(start) || isNaN(end) || start >= end) return alert('Invalid trim range.');
-
-  const originalBuffer = wavesurfer.backend.buffer;
-  const sampleRate = originalBuffer.sampleRate;
-  const startSample = Math.floor(start * sampleRate);
-  const endSample = Math.floor(end * sampleRate);
-
-  const trimmedBuffer = wavesurfer.backend.ac.createBuffer(
-    originalBuffer.numberOfChannels,
-    endSample - startSample,
-    sampleRate
-  );
-
-  for (let i = 0; i < originalBuffer.numberOfChannels; i++) {
-    trimmedBuffer.getChannelData(i).set(
-      originalBuffer.getChannelData(i).slice(startSample, endSample)
-    );
-  }
-
-  const blob = bufferToWav(trimmedBuffer);
-  downloadBlob(blob, 'trimmed.wav');
-}
-
-function downloadFull() {
-  wavesurfer.exportPCM().then(pcm => {
-    // Use Wavesurfer's backend buffer
-    const blob = bufferToWav(wavesurfer.backend.buffer);
-    downloadBlob(blob, 'full.wav');
+  micWavesurfer = WaveSurfer.create({
+    container: '#mic-waveform',
+    waveColor: '#ff0077',
+    progressColor: '#ff3399',
+    height: 80
   });
 }
 
-function downloadTrim() {
-  trimAudio();
-}
+initWaves();
 
-function recordToggle() {
-  alert('Mic recording coming soon!');
-}
-
-function saveToDrafts() {
-  alert('Saved to Drafts (Feature will sync with GenCloud later).');
-}
-
-function bufferToWav(buffer) {
-  const length = buffer.length * buffer.numberOfChannels * 2 + 44;
-  const wav = new ArrayBuffer(length);
-  const view = new DataView(wav);
-
-  function writeString(offset, str) {
-    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+// File upload
+document.getElementById('file-upload').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) {
+    wavesurfer.load(URL.createObjectURL(file));
+    localStorage.setItem('draft-music', URL.createObjectURL(file));
   }
+});
 
-  writeString(0, 'RIFF');
-  view.setUint32(4, length - 8, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, buffer.numberOfChannels, true);
-  view.setUint32(24, buffer.sampleRate, true);
-  view.setUint32(28, buffer.sampleRate * buffer.numberOfChannels * 2, true);
-  view.setUint16(32, buffer.numberOfChannels * 2, true);
-  view.setUint16(34, 16, true);
-  writeString(36, 'data');
-  view.setUint32(40, length - 44, true);
+// Mic record
+document.getElementById('record-btn').addEventListener('click', async () => {
+  micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  recorder = new MediaRecorder(micStream);
+  micChunks = [];
 
-  let offset = 44;
-  for (let i = 0; i < buffer.length; i++) {
-    for (let c = 0; c < buffer.numberOfChannels; c++) {
-      let sample = buffer.getChannelData(c)[i] * 0x7fff;
-      sample = Math.max(-0x8000, Math.min(0x7fff, sample));
-      view.setInt16(offset, sample, true);
-      offset += 2;
+  recorder.ondataavailable = e => micChunks.push(e.data);
+  recorder.onstop = () => {
+    const blob = new Blob(micChunks, { type: 'audio/webm' });
+    const url = URL.createObjectURL(blob);
+    micWavesurfer.load(url);
+    localStorage.setItem('draft-mic', url);
+  };
+
+  recorder.start();
+  document.getElementById('record-btn').disabled = true;
+  document.getElementById('stop-record-btn').disabled = false;
+});
+
+document.getElementById('stop-record-btn').addEventListener('click', () => {
+  recorder.stop();
+  micStream.getTracks().forEach(track => track.stop());
+  document.getElementById('record-btn').disabled = false;
+  document.getElementById('stop-record-btn').disabled = true;
+});
+
+// Controls
+document.getElementById('play-btn').onclick = () => {
+  wavesurfer.play();
+  micWavesurfer.play();
+};
+
+document.getElementById('pause-btn').onclick = () => {
+  wavesurfer.pause();
+  micWavesurfer.pause();
+};
+
+document.getElementById('stop-btn').onclick = () => {
+  wavesurfer.stop();
+  micWavesurfer.stop();
+};
+
+// Save to Drafts
+document.querySelector('.save-draft').onclick = () => {
+  alert('Draft saved locally!');
+};
+
+// MP3 Export
+document.querySelector('.export-btn').onclick = async () => {
+  const musicBuffer = await wavesurfer.backend.buffer;
+  const micBuffer = await micWavesurfer.backend.buffer;
+  const merged = mergeBuffers([musicBuffer, micBuffer]);
+  exportMP3(merged);
+};
+
+function mergeBuffers(buffers) {
+  const sampleRate = buffers[0].sampleRate;
+  const length = Math.max(...buffers.map(b => b.length));
+  const output = new Float32Array(length);
+
+  buffers.forEach(buffer => {
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      output[i] += data[i] / buffers.length;
     }
-  }
+  });
 
-  return new Blob([view], { type: 'audio/wav' });
+  return { data: output, sampleRate };
 }
 
-function downloadBlob(blob, filename) {
+function exportMP3({ data, sampleRate }) {
+  const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
+  const samples = new Int16Array(data.length);
+  for (let i = 0; i < data.length; i++) {
+    samples[i] = data[i] * 32767;
+  }
+
+  const chunk = mp3encoder.encodeBuffer(samples);
+  const mp3Data = mp3encoder.flush();
+
+  const blob = new Blob([chunk, mp3Data], { type: 'audio/mp3' });
   const url = URL.createObjectURL(blob);
+  const name = prompt("Filename?", "mix") || "mix";
+
   const a = document.createElement('a');
-  a.style.display = 'none';
   a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
+  a.download = `${name}.mp3`;
   a.click();
-  URL.revokeObjectURL(url);
-}</script>
+}
+
+// WAV Premium placeholder
+document.querySelector('.export-wav-btn').onclick = () => {
+  alert("WAV export is a premium feature.");
+};</script>
